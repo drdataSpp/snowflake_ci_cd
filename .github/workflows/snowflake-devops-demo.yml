@@ -46,7 +46,7 @@ jobs:
           pip install schemachange
 
           echo "Determining environment and credentials"
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          if [[ "${{ github.ref }}" == "refs/heads/master" ]]; then
             ENVIRONMENT="PROD"
             ACCOUNT=$SF_ACCOUNT
             USERNAME=$SF_USERNAME
