@@ -70,13 +70,13 @@ jobs:
           echo "Step 2: Running schemachange for Database Changes"
           schemachange -f $GITHUB_WORKSPACE/database -a $ACCOUNT -u $USERNAME -r $ROLE -w $WAREHOUSE -d $DATABASE -c $DATABASE.SCHEMACHANGE.CHANGE_HISTORY --create-change-history-table
 
-          echo "Step 3: Running schemachange for Schema Changes"
-          schemachange -f $GITHUB_WORKSPACE/schema -a $ACCOUNT -u $USERNAME -r $ROLE -w $WAREHOUSE -d $DATABASE -c $DATABASE.SCHEMACHANGE.CHANGE_HISTORY --create-change-history-table
+          # echo "Step 3: Running schemachange for Schema Changes"
+          # schemachange -f $GITHUB_WORKSPACE/schema -a $ACCOUNT -u $USERNAME -r $ROLE -w $WAREHOUSE -d $DATABASE -c $DATABASE.SCHEMACHANGE.CHANGE_HISTORY --create-change-history-table
 
-          echo "Step 4: Running schemachange for Table Changes"
-          schemachange -f $GITHUB_WORKSPACE/table -a $ACCOUNT -u $USERNAME -r $ROLE -w $WAREHOUSE -d $DATABASE -c $DATABASE.SCHEMACHANGE.CHANGE_HISTORY --create-change-history-table
+          # echo "Step 4: Running schemachange for Table Changes"
+          # schemachange -f $GITHUB_WORKSPACE/table -a $ACCOUNT -u $USERNAME -r $ROLE -w $WAREHOUSE -d $DATABASE -c $DATABASE.SCHEMACHANGE.CHANGE_HISTORY --create-change-history-table
 
-          echo "Step 5: Running schemachange for View Changes"
-          schemachange -f $GITHUB_WORKSPACE/view -a $ACCOUNT -u $USERNAME -r $ROLE -w $WAREHOUSE -d $DATABASE -c $DATABASE.SCHEMACHANGE.CHANGE_HISTORY --create-change-history-table
+          # echo "Step 5: Running schemachange for View Changes"
+          # schemachange -f $GITHUB_WORKSPACE/view -a $ACCOUNT -u $USERNAME -r $ROLE -w $WAREHOUSE -d $DATABASE -c $DATABASE.SCHEMACHANGE.CHANGE_HISTORY --create-change-history-table
 
           # Add similar steps for other folders like sequences, stages, etc.
