@@ -1,0 +1,19 @@
+name: Baby steps
+run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
+
+# Controls when the action will run. 
+on:
+  push:
+    branches:
+      - 'feature/**'
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  print_curr_branch:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+      - run: echo "🍏 This job's status is ${{ job.status }}."
