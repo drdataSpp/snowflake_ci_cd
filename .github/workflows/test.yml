@@ -14,8 +14,22 @@ jobs:
   print_curr_branch:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
-      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
-      - run: echo git diff --name-only origin/main origin/${GITHUB_HEAD_REF}
-      - run: echo "🍏 This job's status is ${{ job.status }}."
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history for all branches and tags
+
+      - name: Print event information
+        run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+
+      - name: Print branch information
+        run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+
+      - name: Perform git diff
+        run: |
+          git fetch origin main
+          git diff --name-only origin/main ${{ github.sha }}
+
+      - name: Print job status
+        run: echo "🍏 This job's status is ${{ job.status }}."
       
