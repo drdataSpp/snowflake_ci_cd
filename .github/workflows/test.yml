@@ -25,18 +25,19 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get changed files
-        id: changed-files
+      - name: Perform Git Diff
         run: |
-          if [ ${{ github.event_name }} == 'pull_request' ]; then
-            # For pull requests, compare the base branch with the current HEAD
-            git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} > changed_files.txt
+          if [ "${{ github.event_name }}" == 'pull_request' ]; then
+            echo "This is a pull request. Performing diff..."
+            git diff ${{ github.event.pull_request.base.sha }} ${{ github.sha }}
+          elif [ "${{ github.event_name }}" == 'workflow_dispatch' ]; then
+            echo "This is a workflow dispatch. Performing diff with specific commit..."
+            git diff 80faaa057867229dd9a70ac2ccdb5b672e4d4c4d
           else
-            # For pushes, compare with the previous commit
-            git diff --name-only ${{ github.event.before }} ${{ github.event.after }} > changed_files.txt
+            echo "This is neither a pull request nor a workflow dispatch. Performing default diff..."
+            git diff HEAD^
           fi
-          echo "Changed files:"
-          cat changed_files.txt
+        shell: bash
       
       - name: Output full diff
         run: |
