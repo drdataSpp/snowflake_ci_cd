@@ -20,7 +20,7 @@ jobs:
       - name: Print branch information
         run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
 
-            - name: Checkout code
+      - name: Checkout code
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
