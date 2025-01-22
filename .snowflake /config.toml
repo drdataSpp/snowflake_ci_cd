@@ -1,0 +1,8 @@
+[connections.default]
+warehouse = "COMPUTE"
+role = "ACCOUNTADMIN"
+database = "SOORYA_TEST"
+schema = "GITHUB"
+account = "<INSERT YOUR ACCOUNT IDENTIFIER>"
+user = "<INSERT YOUR USERNAME>"
+password = "<INSERT YOUR PASSWORD>"
