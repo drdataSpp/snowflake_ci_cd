@@ -1,5 +1,5 @@
 [connections.default]
-warehouse = "COMPUTE"
+warehouse = "COMPUTE_WH"
 role = "ACCOUNTADMIN"
 database = "SOORYA_TEST"
 schema = "GITHUB"
