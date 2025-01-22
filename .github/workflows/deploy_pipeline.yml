@@ -1,11 +1,10 @@
 name: Deploy data pipeline
 
-# Action will run on pushes to selected branches
 on:
   push:
     branches:
-      - dev
       - main
+      - DST-*  # Trigger on pushes to branches starting with "DST-"
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -25,6 +24,27 @@ jobs:
       # Checkout step is necessary if you want to use a config file from your repo
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Get list of changed files
+        id: changed_files
+        run: |
+          # Fetch the main branch for comparison
+          git fetch origin main
+          
+          # Get the list of changed files
+          git diff --name-only origin/main...HEAD > changed_files.txt
+          
+          # Output the file list
+          echo "Changed files:"
+          cat changed_files.txt
+          
+          # Set the list as an output variable
+          changed_files=$(cat changed_files.txt | tr '\n' ' ')
+          echo "changed_files=$changed_files" >> $GITHUB_ENV
+
+      - name: Use the changed files
+        run: |
+          echo "The changed files are: ${{ env.changed_files }}"
 
       # Install Snowflake CLI GitHub Action and point to config file
       - name: Install snowflake-cli
