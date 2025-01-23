@@ -106,7 +106,7 @@ jobs:
                 echo "Executing SQL script: $file"
                 
                 # Construct the Snowflake repository path for the file
-                full_repo_path="@SOORYA_TEST.GITHUB.GITHUB_REPO/branches/${{ env.branch_name }}/$file"
+                full_repo_path="${REPO_NAME}/branches/${{ env.branch_name }}/$file"
                 echo "Executing on repo path: $full_repo_path"
                 
                 # Execute the SQL script without the variable as it's no longer needed
