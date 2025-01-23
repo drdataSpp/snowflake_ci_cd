@@ -22,12 +22,12 @@ jobs:
 
     steps:
       # Checkout step is necessary if you want to use a config file from your repo
-      - name: Checkout repository
+      - name: Github Actions - Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Get list of changed files
+      - name: Github Actions - Get list of changed files
         id: changed_files
         run: |
           # Fetch the main branch for comparison
@@ -49,12 +49,12 @@ jobs:
           echo "The changed files are: ${{ env.changed_files }}"
 
       # Install Snowflake CLI GitHub Action and point to config file
-      - name: Install snowflake-cli
+      - name: Github Actions - Install snowflake-cli
         uses: Snowflake-Labs/snowflake-cli-action@v1.5
         with:
           cli-version: "latest"
           default-config-file-path: ".snowflake/config.toml"
 
       # Update Snowflake's copy of the repository
-      - name: Fetch repository changes
+      - name: Snowflake Step - Fetch repository changes
         run: snow git fetch "${REPO_NAME}"
