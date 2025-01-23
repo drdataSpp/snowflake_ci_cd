@@ -3,7 +3,7 @@ name: Deploy data pipeline
 on:
   pull_request:
     branches:
-      - master  # This will trigger the workflow when a PR is merged into master
+      - master  # Trigger the workflow when a PR is merged into master
 
   push:
     branches:
@@ -24,13 +24,13 @@ jobs:
       SNOWFLAKE_CONNECTIONS_DEFAULT_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
 
     steps:
-      # Checkout step is necessary if you want to use a config file from your repo
-      - name: Github Actions - Checkout repository
+      # Checkout step to fetch the repository
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Github Actions - Get branch name
+      - name: Get branch name
         id: branch_name
         run: |
           # Extract the branch name from GITHUB_REF
@@ -38,52 +38,52 @@ jobs:
           echo "Branch name is: $branch_name"
           echo "branch_name=$branch_name" >> $GITHUB_ENV
 
-      - name: Github Actions - Get list of changed files
+      - name: Get list of changed files
         id: changed_files
         run: |
           # Fetch the main branch for comparison
           git fetch origin master
-          
+
           # Get the list of changed files
-          git diff --name-only origin/master...HEAD > changed_files.txt
-          
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            git diff --name-only origin/${{ github.base_ref }}...${{ github.head_ref }} > changed_files.txt
+          else
+            git diff --name-only HEAD~ > changed_files.txt
+          fi
+
           # Output the file list
           echo "Changed files:"
           cat changed_files.txt
-          
+
           # Set the list as an output variable
           changed_files=$(cat changed_files.txt | tr '\n' ' ')
           echo "changed_files=$changed_files" >> $GITHUB_ENV
 
-      - name: Github Actions - Use the changed files
+      - name: Use the changed files
         run: |
           echo "The changed files are: ${{ env.changed_files }}"
 
-      # Install Snowflake CLI GitHub Action and point to config file
-      - name: Github Actions - Install snowflake-cli
+      - name: Install Snowflake CLI
         uses: Snowflake-Labs/snowflake-cli-action@v1.5
         with:
           cli-version: "latest"
           default-config-file-path: ".snowflake/config.toml"
 
-      # Update Snowflake's copy of the repository
-      - name: Snowflake Step - Fetch repository changes
+      - name: Fetch repository changes in Snowflake
         run: snow git fetch "${REPO_NAME}"
 
-      # Deploy SQLs in Snowflake
-      - name: Snowflake Step - Execute Snowflake SQL scripts in order
+      - name: Execute Snowflake SQL scripts in order
         if: env.changed_files != ''
         run: |
           echo "Processing changed files: ${{ env.changed_files }}"
       
           # Define the execution order for database change management
           declare -a execution_order=("snowflake_resources/database" "snowflake_resources/schema" "snowflake_resources/table")
-      
-          # Iterate over each execution level
+
+          # Process files based on the defined execution order
           for level in "${execution_order[@]}"; do
             echo "Processing changes in $level"
-            
-            # Filter changed files for the current level (exclude .txt files)
+
             for file in ${{ env.changed_files }}; do
               # Check if the file belongs to the current level and is a SQL file
               if [[ $file == $level* && $file == *.sql ]]; then
