@@ -41,24 +41,21 @@ jobs:
       - name: Get list of changed files
         id: changed_files
         run: |
-          # Fetch all branches for comparison
-          git fetch origin
+          # Fetch the main branch for comparison
+          git fetch origin master
 
-          # Get the base and head branches for the pull request
-          BASE_BRANCH="${{ github.event.pull_request.base.ref }}"
-          HEAD_BRANCH="${{ github.event.pull_request.head.ref }}"
+          # Get the list of changed files
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            git diff --name-only origin/${{ github.base_ref }}...${{ github.head_ref }} > changed_files.txt
+          else
+            git diff --name-only HEAD~ > changed_files.txt
+          fi
 
-          echo "Base branch: $BASE_BRANCH"
-          echo "Head branch: $HEAD_BRANCH"
-
-          # Compare the base branch with the head branch to find changes
-          git diff --name-only origin/$BASE_BRANCH..origin/$HEAD_BRANCH > changed_files.txt
-
-          # Output the list of changed files
+          # Output the file list
           echo "Changed files:"
           cat changed_files.txt
 
-          # Set the list of changed files as an output variable
+          # Set the list as an output variable
           changed_files=$(cat changed_files.txt | tr '\n' ' ')
           echo "changed_files=$changed_files" >> $GITHUB_ENV
 
