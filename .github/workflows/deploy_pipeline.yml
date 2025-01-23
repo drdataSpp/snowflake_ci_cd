@@ -38,29 +38,23 @@ jobs:
           echo "Branch name is: $branch_name"
           echo "branch_name=$branch_name" >> $GITHUB_ENV
 
-      - name: Github Actions - Get list of changed files
+      - name: Get list of changed files
         id: changed_files
         run: |
-          # Fetch the target branch (master) for comparison
-          git fetch origin master
+          # Fetch the base branch (e.g., master) for comparison
+          git fetch origin ${{ github.event.pull_request.base.ref }}
       
-          # Determine the event type and compute changed files
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            # Fetch the pull request's base branch
-            git fetch origin ${{ github.event.pull_request.base.ref }}
+          # Fetch the head branch (the branch being merged in the PR)
+          git fetch origin ${{ github.event.pull_request.head.ref }}
       
-            # Compare the base branch with the pull request's HEAD commit
-            git diff --name-only FETCH_HEAD...HEAD > changed_files.txt
-          else
-            # For push events, compare the latest commit with its parent
-            git diff --name-only HEAD~ > changed_files.txt
-          fi
+          # Compare the base branch with the head branch to find changes
+          git diff --name-only origin/${{ github.event.pull_request.base.ref }}..origin/${{ github.event.pull_request.head.ref }} > changed_files.txt
       
           # Output the list of changed files
           echo "Changed files:"
           cat changed_files.txt
       
-          # Set the list as an output variable
+          # Set the list of changed files as an output variable
           changed_files=$(cat changed_files.txt | tr '\n' ' ')
           echo "changed_files=$changed_files" >> $GITHUB_ENV
 
