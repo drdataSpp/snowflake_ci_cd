@@ -68,24 +68,29 @@ jobs:
         run: snow git fetch "${REPO_NAME}"
 
       # Deploy SQLs in Snowflake
-      - name: Execute Snowflake SQL scripts
+      - name: Execute Snowflake SQL scripts in order
         if: env.changed_files != ''
         run: |
           echo "Processing changed files: ${{ env.changed_files }}"
-
-          # Iterate over each changed file
-          for file in ${{ env.changed_files }}; do
-            # Check if the file is a SQL script
-            if [[ $file == *.sql ]]; then
-              echo "Executing SQL script: $file"
-              
-              # Construct the Snowflake repository path including the file
-              full_repo_path="@SOORYA_TEST.GITHUB.GITHUB_REPO/branches/${{ env.branch_name }}/$file"
-              echo "Executing on repo path: $full_repo_path"
-              
-              # Execute the SQL script using snow git execute
-              snow git execute "$full_repo_path"
-            else
-              echo "Skipping non-SQL file: $file"
-            fi
+      
+          # Define the execution order for database change management
+          declare -a execution_order=("snowflake/database" "snowflake/schema" "snowflake/table")
+      
+          # Iterate over each execution level
+          for level in "${execution_order[@]}"; do
+            echo "Processing changes in $level"
+            
+            # Filter changed files for the current level
+            for file in ${{ env.changed_files }}; do
+              if [[ $file == $level* && $file == *.sql ]]; then
+                echo "Executing SQL script: $file"
+                
+                # Construct the Snowflake repository path for the file
+                full_repo_path="@SOORYA_TEST.GITHUB.GITHUB_REPO/branches/${{ env.branch_name }}/$file"
+                echo "Executing on repo path: $full_repo_path"
+                
+                # Execute the SQL script
+                snow git execute "$full_repo_path"
+              fi
+            done
           done
