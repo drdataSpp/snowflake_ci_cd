@@ -69,19 +69,19 @@ jobs:
 
       # Deploy SQLs in Snowflake
       - name: Execute Snowflake SQL scripts
-      if: env.changed_files != ''
-      run: |
-        echo "Processing changed files: ${{ env.changed_files }}"
+        if: env.changed_files != ''
+        run: |
+          echo "Processing changed files: ${{ env.changed_files }}"
 
-        # Iterate over each changed file
-        for file in ${{ env.changed_files }}; do
-          # Check if the file is a SQL script
-          if [[ $file == *.sql ]]; then
-            echo "Executing SQL script: $file"
-            
-            # Dynamically update the Snowflake Git repo path with the branch name
-            snow git execute --path "$file" --repo "@SOORYA_TEST.GITHUB.GITHUB_REPO/branches/${{ env.branch_name }}"
-          else
-            echo "Skipping non-SQL file: $file"
-          fi
-        done
+          # Iterate over each changed file
+          for file in ${{ env.changed_files }}; do
+            # Check if the file is a SQL script
+            if [[ $file == *.sql ]]; then
+              echo "Executing SQL script: $file"
+              
+              # Dynamically update the Snowflake Git repo path with the branch name
+              snow git execute --path "$file" --repo "@SOORYA_TEST.GITHUB.GITHUB_REPO/branches/${{ env.branch_name }}"
+            else
+              echo "Skipping non-SQL file: $file"
+            fi
+          done
