@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - master
-      - Snowflake-Deployment-*  # Trigger on pushes to branches starting with "DST-"
+      - Snowflake-Deployment-*  # Trigger on pushes to branches starting with "Snowflake-Deployment-"
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -34,6 +34,18 @@ jobs:
           branch_name=${GITHUB_REF#refs/heads/}
           echo "Branch name is: $branch_name"
           echo "branch_name=$branch_name" >> $GITHUB_ENV
+
+      # Set the environment variable based on the branch
+      - name: Determine environment
+        id: determine_env
+        run: |
+          if [[ "${GITHUB_REF}" == "refs/heads/master" ]]; then
+            ENV="PROD"
+          else
+            ENV="TEST"
+          fi
+          echo "Environment set to: $ENV"
+          echo "ENV=$ENV" >> $GITHUB_ENV
 
       - name: Get list of changed files
         id: changed_files
@@ -73,7 +85,8 @@ jobs:
         if: env.changed_files != ''
         run: |
           echo "Processing changed files: ${{ env.changed_files }}"
-      
+          echo "Using environment: ${{ env.ENV }}"
+
           # Define the execution order for database change management
           declare -a execution_order=("snowflake_resources/database" "snowflake_resources/schema" "snowflake_resources/table")
 
@@ -90,8 +103,9 @@ jobs:
                 full_repo_path="@SOORYA_TEST.GITHUB.GITHUB_REPO/branches/${{ env.branch_name }}/$file"
                 echo "Executing on repo path: $full_repo_path"
                 
-                # Execute the SQL script
-                snow git execute "$full_repo_path"
+                # Execute the SQL script with the environment variable passed
+                snow git execute "$full_repo_path" \
+                  --variable "ENV='${{ env.ENV }}'"
               else
                 echo "Skipping non-SQL file or file not in $level: $file"
               fi
