@@ -15,10 +15,10 @@ jobs:
 
     env:
       REPO_NAME: "SOORYA_TEST.GITHUB.GITHUB_REPO"
-      # Read connection secrets
-      SNOWFLAKE_CONNECTIONS_DEFAULT_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-      SNOWFLAKE_CONNECTIONS_DEFAULT_USER: ${{ secrets.SNOWFLAKE_USER }}
-      SNOWFLAKE_CONNECTIONS_DEFAULT_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+      # Set default connection secrets for test environment
+      SNOWFLAKE_CONNECTIONS_DEFAULT_USER: ${{ secrets.SNOWFLAKE_USER_TEST }}
+      SNOWFLAKE_CONNECTIONS_DEFAULT_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD_TEST }}
+      SNOWFLAKE_CONNECTIONS_DEFAULT_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT_TEST }}  # Default to Test account
 
     steps:
       # Checkout step to fetch the repository
@@ -35,14 +35,20 @@ jobs:
           echo "Branch name is: $branch_name"
           echo "branch_name=$branch_name" >> $GITHUB_ENV
 
-      # Set the environment variable based on the branch
-      - name: Determine environment
+      # Set the environment and Snowflake account, user, password based on the branch
+      - name: Determine environment and account
         id: determine_env
         run: |
           if [[ "${GITHUB_REF}" == "refs/heads/master" ]]; then
             ENV="PROD"
+            # Switch to the prod Snowflake account, user, and password
+            echo "SNOWFLAKE_CONNECTIONS_DEFAULT_ACCOUNT=${{ secrets.SNOWFLAKE_ACCOUNT_PROD }}" >> $GITHUB_ENV
+            echo "SNOWFLAKE_CONNECTIONS_DEFAULT_USER=${{ secrets.SNOWFLAKE_USER_PROD }}" >> $GITHUB_ENV
+            echo "SNOWFLAKE_CONNECTIONS_DEFAULT_PASSWORD=${{ secrets.SNOWFLAKE_PASSWORD_PROD }}" >> $GITHUB_ENV
           else
             ENV="TEST"
+            # Use test account, user, and password by default
+            echo "Using Test Snowflake account"
           fi
           echo "Environment set to: $ENV"
           echo "ENV=$ENV" >> $GITHUB_ENV
@@ -103,9 +109,8 @@ jobs:
                 full_repo_path="@SOORYA_TEST.GITHUB.GITHUB_REPO/branches/${{ env.branch_name }}/$file"
                 echo "Executing on repo path: $full_repo_path"
                 
-                # Execute the SQL script with the environment variable passed
-                snow git execute "$full_repo_path" \
-                  --variable "ENV='${{ env.ENV }}'"
+                # Execute the SQL script without the variable as it's no longer needed
+                snow git execute "$full_repo_path"
               else
                 echo "Skipping non-SQL file or file not in $level: $file"
               fi
