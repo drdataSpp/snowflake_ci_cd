@@ -41,25 +41,28 @@ jobs:
       - name: Github Actions - Get list of changed files
         id: changed_files
         run: |
-            # Fetch the target branch (master) for comparison
-            git fetch origin master
-        
-            # Determine the trigger type and get the list of changed files
-            if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-              # Compare the pull request's merge commit with the base branch (master)
-              git diff --name-only origin/master...HEAD > changed_files.txt
-            else
-              # For pushes, compare the latest commit with the previous commit
-              git diff --name-only HEAD~ > changed_files.txt
-            fi
-        
-            # Output the list of changed files
-            echo "Changed files:"
-            cat changed_files.txt
-        
-            # Set the list as an output variable
-            changed_files=$(cat changed_files.txt | tr '\n' ' ')
-            echo "changed_files=$changed_files" >> $GITHUB_ENV
+          # Fetch the target branch (master) for comparison
+          git fetch origin master
+      
+          # Determine the event type and compute changed files
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            # Fetch the pull request's base branch
+            git fetch origin ${{ github.event.pull_request.base.ref }}
+      
+            # Compare the base branch with the pull request's HEAD commit
+            git diff --name-only FETCH_HEAD...HEAD > changed_files.txt
+          else
+            # For push events, compare the latest commit with its parent
+            git diff --name-only HEAD~ > changed_files.txt
+          fi
+      
+          # Output the list of changed files
+          echo "Changed files:"
+          cat changed_files.txt
+      
+          # Set the list as an output variable
+          changed_files=$(cat changed_files.txt | tr '\n' ' ')
+          echo "changed_files=$changed_files" >> $GITHUB_ENV
 
       - name: Use the changed files
         run: |
