@@ -24,12 +24,14 @@ jobs:
       # Checkout step is necessary if you want to use a config file from your repo
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Get list of changed files
         id: changed_files
         run: |
           # Fetch the main branch for comparison
-          git fetch --depth=0 origin master
+          git fetch origin master
           
           # Get the list of changed files
           git diff --name-only origin/master...HEAD > changed_files.txt
