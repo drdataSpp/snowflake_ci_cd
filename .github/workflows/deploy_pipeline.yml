@@ -74,7 +74,7 @@ jobs:
           echo "Processing changed files: ${{ env.changed_files }}"
       
           # Define the execution order for database change management
-          declare -a execution_order=("snowflake/database" "snowflake/schema" "snowflake/table")
+          declare -a execution_order=("snowflake_resources/database" "snowflake_resources/schema" "snowflake_resources/table")
       
           # Iterate over each execution level
           for level in "${execution_order[@]}"; do
