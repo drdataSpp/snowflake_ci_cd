@@ -1,9 +1,12 @@
 name: Deploy data pipeline
 
 on:
+  pull_request:
+    branches:
+      - master  # This will trigger the workflow when a PR is merged into master
+
   push:
     branches:
-      - main
       - DST-*  # Trigger on pushes to branches starting with "DST-"
 
   # Allows you to run this workflow manually from the Actions tab
