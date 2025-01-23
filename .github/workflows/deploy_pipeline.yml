@@ -27,7 +27,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get branch name
+      - name: Github Actions - Get branch name
         id: branch_name
         run: |
           # Extract the branch name from GITHUB_REF
@@ -52,7 +52,7 @@ jobs:
           changed_files=$(cat changed_files.txt | tr '\n' ' ')
           echo "changed_files=$changed_files" >> $GITHUB_ENV
 
-      - name: Use the changed files
+      - name: Github Actions - Use the changed files
         run: |
           echo "The changed files are: ${{ env.changed_files }}"
 
@@ -68,7 +68,7 @@ jobs:
         run: snow git fetch "${REPO_NAME}"
 
       # Deploy SQLs in Snowflake
-      - name: Execute Snowflake SQL scripts in order
+      - name: Snowflake Step - Execute Snowflake SQL scripts in order
         if: env.changed_files != ''
         run: |
           echo "Processing changed files: ${{ env.changed_files }}"
@@ -80,8 +80,9 @@ jobs:
           for level in "${execution_order[@]}"; do
             echo "Processing changes in $level"
             
-            # Filter changed files for the current level
+            # Filter changed files for the current level (exclude .txt files)
             for file in ${{ env.changed_files }}; do
+              # Check if the file belongs to the current level and is a SQL file
               if [[ $file == $level* && $file == *.sql ]]; then
                 echo "Executing SQL script: $file"
                 
@@ -91,6 +92,8 @@ jobs:
                 
                 # Execute the SQL script
                 snow git execute "$full_repo_path"
+              else
+                echo "Skipping non-SQL file or file not in $level: $file"
               fi
             done
           done
