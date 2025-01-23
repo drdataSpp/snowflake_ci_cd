@@ -27,6 +27,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Get branch name
+        id: branch_name
+        run: |
+          # Extract the branch name from GITHUB_REF
+          branch_name=${GITHUB_REF#refs/heads/}
+          echo "Branch name is: $branch_name"
+          echo "branch_name=$branch_name" >> $GITHUB_ENV
+
       - name: Github Actions - Get list of changed files
         id: changed_files
         run: |
@@ -58,3 +66,22 @@ jobs:
       # Update Snowflake's copy of the repository
       - name: Snowflake Step - Fetch repository changes
         run: snow git fetch "${REPO_NAME}"
+
+      # Deploy SQLs in Snowflake
+      - name: Execute Snowflake SQL scripts
+      if: env.changed_files != ''
+      run: |
+        echo "Processing changed files: ${{ env.changed_files }}"
+
+        # Iterate over each changed file
+        for file in ${{ env.changed_files }}; do
+          # Check if the file is a SQL script
+          if [[ $file == *.sql ]]; then
+            echo "Executing SQL script: $file"
+            
+            # Dynamically update the Snowflake Git repo path with the branch name
+            snow git execute --path "$file" --repo "@SOORYA_TEST.GITHUB.GITHUB_REPO/branches/${{ env.branch_name }}"
+          else
+            echo "Skipping non-SQL file: $file"
+          fi
+        done
