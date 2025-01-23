@@ -79,8 +79,12 @@ jobs:
             if [[ $file == *.sql ]]; then
               echo "Executing SQL script: $file"
               
-              # Dynamically update the Snowflake Git repo path with the branch name
-              snow git execute --path "$file" --repo "@SOORYA_TEST.GITHUB.GITHUB_REPO/branches/${{ env.branch_name }}"
+              # Construct the Snowflake repository path including the file
+              full_repo_path="@SOORYA_TEST.GITHUB.GITHUB_REPO/branches/${{ env.branch_name }}/$file"
+              echo "Executing on repo path: $full_repo_path"
+              
+              # Execute the SQL script using snow git execute
+              snow git execute "$full_repo_path"
             else
               echo "Skipping non-SQL file: $file"
             fi
