@@ -38,14 +38,13 @@ jobs:
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             # Extract the base branch from the PR event
             echo "PR base branch: ${{ github.base_ref }}"
-            echo "branch_name=${{ github.base_ref }}" >> $GITHUB_ENV
+            echo "branch_name=${{ github.base_ref }}" >> $GITHUB_OUTPUT
           else
             # Extract the branch name for a push event
             branch_name=${GITHUB_REF#refs/heads/}
             echo "Branch name is: $branch_name"
-            echo "branch_name=$branch_name" >> $GITHUB_ENV
+            echo "branch_name=$branch_name" >> $GITHUB_OUTPUT
           fi
-  
 
       - name: Set environment and Snowflake account based on branch or PR
         id: determine_env
@@ -77,18 +76,18 @@ jobs:
             git fetch origin ${{ github.base_ref }}
             git fetch origin ${{ github.head_ref }}
             echo "Comparing ${{ github.base_ref }} to ${{ github.head_ref }}"
-            git diff --name-only origin/${{ github.base_ref }}...origin/${{ github.head_ref }} > changed_files.txt
+            git diff --name-only --diff-filter=ACMR origin/${{ github.base_ref }}...origin/${{ github.head_ref }} > changed_files.txt
           else
             # For pushes, compare with the previous commit
             git fetch --depth=2 origin ${{ github.ref }}
             echo "Comparing with previous commit"
-            git diff --name-only HEAD^ HEAD > changed_files.txt
+            git diff --name-only --diff-filter=ACMR HEAD^ HEAD > changed_files.txt
           fi
       
           echo "Changed files:"
           cat changed_files.txt
       
-          changed_files=$(cat changed_files.txt | tr '\n' ' ')
+          changed_files=$(cat changed_files.txt | grep '\.sql$' | tr '\n' ' ')
           echo "changed_files=$changed_files" >> $GITHUB_OUTPUT
 
       - name: Install Snowflake CLI
@@ -101,18 +100,17 @@ jobs:
         run: snow git fetch "${REPO_NAME}"
 
       - name: Execute Snowflake SQL scripts in order
-        if: env.changed_files != ''
+        if: steps.changed_files.outputs.changed_files != ''
         run: |
-          echo "Processing changed files: ${{ env.changed_files }}"
+          echo "Processing changed files: ${{ steps.changed_files.outputs.changed_files }}"
           echo "Using environment: ${{ env.ENV }}"
-
           declare -a execution_order=("snowflake_resources/database" "snowflake_resources/schema" "snowflake_resources/table")
           for level in "${execution_order[@]}"; do
             echo "Processing changes in $level"
-            for file in ${{ env.changed_files }}; do
+            for file in ${{ steps.changed_files.outputs.changed_files }}; do
               if [[ $file == $level* && $file == *.sql ]]; then
                 echo "Executing SQL script: $file"
-                full_repo_path="@$REPO_NAME/branches/${{ env.branch_name }}/$file"
+                full_repo_path="@$REPO_NAME/branches/${{ steps.branch_info.outputs.branch_name }}/$file"
                 echo "Executing on repo path: $full_repo_path"
                 snow git execute "$full_repo_path"
               else
