@@ -20,8 +20,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy:
+  snowflake-ci-cd:
     runs-on: ubuntu-latest
+    permissions: write-all
 
     env:
       REPO_NAME: "GITHUB.SNOWFLAKE_GIT.SNOWFLAKE_REPO"
@@ -127,7 +128,7 @@ jobs:
           done
           echo "deployed_files=$deployed_files" >> $GITHUB_OUTPUT
 
-      - name: Post PR comment
+      - name: Post Snowflake CI/CD Deployment Status
         if: github.event_name == 'pull_request' || github.ref == 'refs/heads/master'
         uses: actions/github-script@v6
         with:
