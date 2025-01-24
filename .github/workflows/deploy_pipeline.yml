@@ -140,7 +140,7 @@ jobs:
           fi
 
       - name: Post Snowflake CI/CD Deployment Status
-        if: always()
+        if: always() && env.ENV == 'TEST'
         uses: actions/github-script@v6
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
