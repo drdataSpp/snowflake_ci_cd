@@ -1,8 +1,8 @@
 [connections.default]
-warehouse = "COMPUTE_WH"
-role = "ACCOUNTADMIN"
-database = "SOORYA_TEST"
-schema = "GITHUB"
+warehouse = "DEVOPS_WH"
+role = "SYSADMIN"
+database = "GITHUB"
+schema = "SNOWFLAKE_GIT"
 account = "<INSERT YOUR ACCOUNT IDENTIFIER>"
 user = "<INSERT YOUR USERNAME>"
 password = "<INSERT YOUR PASSWORD>"
