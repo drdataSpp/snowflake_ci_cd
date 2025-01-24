@@ -113,7 +113,12 @@ jobs:
             for file in ${{ steps.changed_files.outputs.changed_files }}; do
               if [[ $file == $level* && $file == *.sql ]]; then
                 echo "Executing SQL script: $file"
-                full_repo_path="@$REPO_NAME/branches/${{ steps.branch_info.outputs.branch_name }}/$file"
+                if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+                  branch_name="${{ github.head_ref }}"
+                else
+                  branch_name="master"
+                fi
+                full_repo_path="@$REPO_NAME/branches/$branch_name/$file"
                 echo "Executing on repo path: $full_repo_path"
                 if snow git execute "$full_repo_path"; then
                   deployed_files+="$file "
@@ -126,7 +131,7 @@ jobs:
               fi
             done
           done
-          echo "deployed_files=$deployed_files" >> $GITHUB_OUTPUT
+
 
       - name: Post Snowflake CI/CD Deployment Status
         if: github.event_name == 'pull_request' || github.ref == 'refs/heads/master'
