@@ -72,15 +72,26 @@ jobs:
       - name: Get list of changed files
         id: changed_files
         run: |
+          # Fetch the base branch for comparison
+          git fetch origin ${{ github.base_ref }} || git fetch origin master
+          
+          # Use git diff to list changes based on the event type
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            # Compare the PR branch with its base branch
             git diff --name-only origin/${{ github.base_ref }}...${{ github.head_ref }} > changed_files.txt
           else
+            # Compare the current branch's latest commit with its previous commit
             git diff --name-only HEAD~ > changed_files.txt
           fi
+
+          # Output the list of changed files
           echo "Changed files:"
           cat changed_files.txt
+
+          # Set the list of changed files as an output variable
           changed_files=$(cat changed_files.txt | tr '\n' ' ')
           echo "changed_files=$changed_files" >> $GITHUB_ENV
+
 
       - name: Install Snowflake CLI
         uses: Snowflake-Labs/snowflake-cli-action@v1.5
