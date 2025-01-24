@@ -14,7 +14,7 @@ on:
       - ready_for_review
       - synchronize           # When new commits are pushed to the PR
     paths:
-      - snowflake_resources/**  # Trigger only when changes are in the snowflake_resources # Trigger on pushes to branches starting with "Snowflake-Deployment-"
+      - snowflake_resources/**  # Trigger only when changes are in the snowflake_resources folder
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -25,40 +25,44 @@ jobs:
 
     env:
       REPO_NAME: "GITHUB.SNOWFLAKE_GIT.SNOWFLAKE_REPO"
-      # Set default connection secrets for test environment
-      SNOWFLAKE_CONNECTIONS_DEFAULT_USER: ${{ secrets.SNOWFLAKE_USER_TEST }}
-      SNOWFLAKE_CONNECTIONS_DEFAULT_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD_TEST }}
-      SNOWFLAKE_CONNECTIONS_DEFAULT_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT_TEST }}  # Default to Test account
 
     steps:
-      # Checkout step to fetch the repository
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Get branch name
-        id: branch_name
+      - name: Get branch or PR base branch
+        id: branch_info
         run: |
-          # Extract the branch name from GITHUB_REF
-          branch_name=${GITHUB_REF#refs/heads/}
-          echo "Branch name is: $branch_name"
-          echo "branch_name=$branch_name" >> $GITHUB_ENV
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            # Extract the base branch from the PR event
+            echo "PR base branch: ${{ github.base_ref }}"
+            echo "branch_name=${{ github.base_ref }}" >> $GITHUB_ENV
+          else
+            # Extract the branch name for a push event
+            branch_name=${GITHUB_REF#refs/heads/}
+            echo "Branch name is: $branch_name"
+            echo "branch_name=$branch_name" >> $GITHUB_ENV
 
-      # Set the environment and Snowflake account, user, password based on the branch
-      - name: Determine environment and account
+      - name: Set environment and Snowflake account based on branch or PR
         id: determine_env
         run: |
-          if [[ "${GITHUB_REF}" == "refs/heads/master" ]]; then
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "Event is a pull request. Deploying to TEST environment."
+            ENV="TEST"
+            echo "SNOWFLAKE_CONNECTIONS_DEFAULT_ACCOUNT=${{ secrets.SNOWFLAKE_ACCOUNT_TEST }}" >> $GITHUB_ENV
+            echo "SNOWFLAKE_CONNECTIONS_DEFAULT_USER=${{ secrets.SNOWFLAKE_USER_TEST }}" >> $GITHUB_ENV
+            echo "SNOWFLAKE_CONNECTIONS_DEFAULT_PASSWORD=${{ secrets.SNOWFLAKE_PASSWORD_TEST }}" >> $GITHUB_ENV
+          elif [[ "${{ github.ref }}" == "refs/heads/master" ]]; then
+            echo "Event is a push to master. Deploying to PROD environment."
             ENV="PROD"
-            # Switch to the prod Snowflake account, user, and password
             echo "SNOWFLAKE_CONNECTIONS_DEFAULT_ACCOUNT=${{ secrets.SNOWFLAKE_ACCOUNT_PROD }}" >> $GITHUB_ENV
             echo "SNOWFLAKE_CONNECTIONS_DEFAULT_USER=${{ secrets.SNOWFLAKE_USER_PROD }}" >> $GITHUB_ENV
             echo "SNOWFLAKE_CONNECTIONS_DEFAULT_PASSWORD=${{ secrets.SNOWFLAKE_PASSWORD_PROD }}" >> $GITHUB_ENV
           else
-            ENV="TEST"
-            # Use test account, user, and password by default
-            echo "Using Test Snowflake account"
+            echo "Unexpected event or branch. Skipping deployment."
+            exit 1
           fi
           echo "Environment set to: $ENV"
           echo "ENV=$ENV" >> $GITHUB_ENV
@@ -66,27 +70,15 @@ jobs:
       - name: Get list of changed files
         id: changed_files
         run: |
-          # Fetch the main branch for comparison
-          git fetch origin master
-
-          # Get the list of changed files
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             git diff --name-only origin/${{ github.base_ref }}...${{ github.head_ref }} > changed_files.txt
           else
             git diff --name-only HEAD~ > changed_files.txt
           fi
-
-          # Output the file list
           echo "Changed files:"
           cat changed_files.txt
-
-          # Set the list as an output variable
           changed_files=$(cat changed_files.txt | tr '\n' ' ')
           echo "changed_files=$changed_files" >> $GITHUB_ENV
-
-      - name: Use the changed files
-        run: |
-          echo "The changed files are: ${{ env.changed_files }}"
 
       - name: Install Snowflake CLI
         uses: Snowflake-Labs/snowflake-cli-action@v1.5
@@ -103,23 +95,14 @@ jobs:
           echo "Processing changed files: ${{ env.changed_files }}"
           echo "Using environment: ${{ env.ENV }}"
 
-          # Define the execution order for database change management
           declare -a execution_order=("snowflake_resources/database" "snowflake_resources/schema" "snowflake_resources/table")
-
-          # Process files based on the defined execution order
           for level in "${execution_order[@]}"; do
             echo "Processing changes in $level"
-
             for file in ${{ env.changed_files }}; do
-              # Check if the file belongs to the current level and is a SQL file
               if [[ $file == $level* && $file == *.sql ]]; then
                 echo "Executing SQL script: $file"
-                
-                # Construct the Snowflake repository path for the file
                 full_repo_path="@$REPO_NAME/branches/${{ env.branch_name }}/$file"
                 echo "Executing on repo path: $full_repo_path"
-                
-                # Execute the SQL script without the variable as it's no longer needed
                 snow git execute "$full_repo_path"
               else
                 echo "Skipping non-SQL file or file not in $level: $file"
