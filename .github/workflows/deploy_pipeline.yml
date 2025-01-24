@@ -24,6 +24,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions: write-all
 
+    # Add this condition to skip the job for manual deployment branches
+    if: |
+      !startsWith(github.head_ref, 'snowflake-manual-deployment-') &&
+      !startsWith(github.ref, 'refs/heads/snowflake-manual-deployment-')
+
     env:
       REPO_NAME: "GITHUB.SNOWFLAKE_GIT.SNOWFLAKE_REPO"
 
