@@ -104,10 +104,12 @@ jobs:
         id: execute_scripts
         if: steps.changed_files.outputs.changed_files != ''
         run: |
+          set +e  # Continue execution even if a command fails
           echo "Processing changed files: ${{ steps.changed_files.outputs.changed_files }}"
           echo "Using environment: ${{ env.ENV }}"
           declare -a execution_order=("snowflake_resources/database" "snowflake_resources/schema" "snowflake_resources/table")
           deployed_files=""
+          failed_files=""
           for level in "${execution_order[@]}"; do
             echo "Processing changes in $level"
             for file in ${{ steps.changed_files.outputs.changed_files }}; do
@@ -123,30 +125,50 @@ jobs:
                 if snow git execute "$full_repo_path"; then
                   deployed_files+="$file "
                 else
+                  failed_files+="$file "
                   echo "Failed to execute $file"
-                  exit 1
                 fi
               else
                 echo "Skipping non-SQL file or file not in $level: $file"
               fi
             done
           done
-
+          echo "deployed_files=$deployed_files" >> $GITHUB_OUTPUT
+          echo "failed_files=$failed_files" >> $GITHUB_OUTPUT
+          if [[ -n "$failed_files" ]]; then
+            exit 1
+          fi
 
       - name: Post Snowflake CI/CD Deployment Status
-        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/master'
+        if: always()
         uses: actions/github-script@v6
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const files = '${{ steps.execute_scripts.outputs.deployed_files }}'.trim().split(' ').filter(Boolean);
+            const deployedFiles = '${{ steps.execute_scripts.outputs.deployed_files }}'.trim().split(' ').filter(Boolean);
+            const failedFiles = '${{ steps.execute_scripts.outputs.failed_files }}'.trim().split(' ').filter(Boolean);
             const env = '${{ env.ENV }}';
             const status = '${{ job.status }}';
             
-            let message = ` 🚀🚀 **Deployment to ${env} environment** 🚀🚀\n\n`;
-            message += `Files deployed:\n`;
-            message += files.length > 1 ? files.map(file => `- ${file}`).join('\n') : files[0];
-            message += `\n\nDeployment status: **${status}** ${status.toLowerCase() === 'success' ? '✅😎' : '❌😐'}`;
+            let message = `🚀🚀 **Deployment to ${env} environment** 🚀🚀\n\n`;
+            
+            if (deployedFiles.length > 0) {
+              message += `Successfully deployed files:\n`;
+              message += deployedFiles.length > 1 ? deployedFiles.map(file => `- ${file}`).join('\n') : deployedFiles[0];
+              message += '\n\n';
+            }
+            
+            if (failedFiles.length > 0) {
+              message += `Failed to deploy files:\n`;
+              message += failedFiles.length > 1 ? failedFiles.map(file => `- ${file}`).join('\n') : failedFiles[0];
+              message += '\n\n';
+            }
+            
+            message += `Deployment status: **${status}** ${status.toLowerCase() === 'success' ? '✅😎' : '❌😐'}`;
+            
+            if (failedFiles.length > 0) {
+              message += '\n\n⚠️ Error details: SQL compilation error in file(s). Please check the workflow logs for more information.';
+            }
             
             github.rest.issues.createComment({
               issue_number: context.issue.number,
