@@ -3,8 +3,18 @@ name: Deploy data pipeline
 on:
   push:
     branches:
-      - master
-      - Snowflake-Deployment-*  # Trigger on pushes to branches starting with "Snowflake-Deployment-"
+      - master                # Trigger only on the master branch
+    paths:
+      - snowflake_resources/**  # Trigger only when changes are in the snowflake_resources folder
+
+  pull_request:
+    types:                    # Specify PR events to trigger the workflow
+      - opened
+      - reopened
+      - ready_for_review
+      - synchronize           # When new commits are pushed to the PR
+    paths:
+      - snowflake_resources/**  # Trigger only when changes are in the snowflake_resources # Trigger on pushes to branches starting with "Snowflake-Deployment-"
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
