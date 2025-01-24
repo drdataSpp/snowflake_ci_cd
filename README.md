@@ -20,7 +20,7 @@
 
 | Testing Scenario | Type of Test | Result | PR link |
 |----------|----------|----------|----------|
-| Is the draft Github Workflow running and deploying objects to Snowflake (Single Instance)?| Github Actions and triggers | PASS ✅ - GA was triggered on push trigger and SF objects were deployed | https://github.com/drdataSpp/snowflake_ci_cd/pull/4 |
-| Is Github Actions getting triggered based on branch naming convention? | Github Actions and Triggers | PASS ✅ - Getting triggered when branch starts with 'DST-' | https://github.com/drdataSpp/snowflake_ci_cd/pull/8 |
-| Is Github Actions deploying to test environment when GA is triggered baseon on branch name and to PROD when merged ? | Github Actions and Triggers | PASS ✅ - When merged the SF objects are deployed to PROD, during branch name based triggers it it getting deployed to TEST | https://github.com/drdataSpp/snowflake_ci_cd/pull/12 |
+| Is the draft Github Workflow running and deploying objects to Snowflake (Single Instance)?| Functionality | PASS ✅ - GA was triggered on push trigger and SF objects were deployed | https://github.com/drdataSpp/snowflake_ci_cd/pull/4 |
+| Is Github Actions getting triggered based on branch naming convention? | Functionality | PASS ✅ - Getting triggered when branch starts with 'DST-' | https://github.com/drdataSpp/snowflake_ci_cd/pull/8 |
+| Is Github Actions deploying to test environment when GA is triggered baseon on branch name and to PROD when merged ? | Functionality | PASS ✅ - When merged the SF objects are deployed to PROD, during branch name based triggers it it getting deployed to TEST | https://github.com/drdataSpp/snowflake_ci_cd/pull/12 |
 
