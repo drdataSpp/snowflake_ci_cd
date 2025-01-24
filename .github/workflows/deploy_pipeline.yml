@@ -100,11 +100,13 @@ jobs:
         run: snow git fetch "${REPO_NAME}"
 
       - name: Execute Snowflake SQL scripts in order
+        id: execute_scripts
         if: steps.changed_files.outputs.changed_files != ''
         run: |
           echo "Processing changed files: ${{ steps.changed_files.outputs.changed_files }}"
           echo "Using environment: ${{ env.ENV }}"
           declare -a execution_order=("snowflake_resources/database" "snowflake_resources/schema" "snowflake_resources/table")
+          deployed_files=""
           for level in "${execution_order[@]}"; do
             echo "Processing changes in $level"
             for file in ${{ steps.changed_files.outputs.changed_files }}; do
@@ -112,9 +114,36 @@ jobs:
                 echo "Executing SQL script: $file"
                 full_repo_path="@$REPO_NAME/branches/${{ steps.branch_info.outputs.branch_name }}/$file"
                 echo "Executing on repo path: $full_repo_path"
-                snow git execute "$full_repo_path"
+                if snow git execute "$full_repo_path"; then
+                  deployed_files+="$file "
+                else
+                  echo "Failed to execute $file"
+                  exit 1
+                fi
               else
                 echo "Skipping non-SQL file or file not in $level: $file"
               fi
             done
           done
+          echo "deployed_files=$deployed_files" >> $GITHUB_OUTPUT
+
+      - name: Post PR comment
+        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/master'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const files = '${{ steps.execute_scripts.outputs.deployed_files }}'.split(' ');
+            const env = '${{ env.ENV }}';
+            const status = '${{ job.status }}';
+            
+            let message = `Deployment to ${env} environment:\n\n`;
+            message += `Files deployed:\n${files.map(file => `- ${file}`).join('\n')}\n\n`;
+            message += `Deployment status: ${status}`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: message
+            });
