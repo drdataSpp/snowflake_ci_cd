@@ -75,7 +75,7 @@ USE ROLE USERADMIN;
 
 CREATE USER devops_sa
     PASSWORD = ''
-    DEFAULT_ROLE = SYSAMIN /* Ideally we should have a dedicated role */
+    DEFAULT_ROLE = SYSADMIN /* Ideally we should have a dedicated role */
     DEFAULT_WAREHOUSE = DEVOPS_WH
     COMMENT = 'Service account for Github Actions.';
 
