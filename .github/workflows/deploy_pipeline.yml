@@ -107,7 +107,7 @@ jobs:
           set +e  # Continue execution even if a command fails
           echo "Processing changed files: ${{ steps.changed_files.outputs.changed_files }}"
           echo "Using environment: ${{ env.ENV }}"
-          declare -a execution_order=("snowflake_resources/database" "snowflake_resources/schema" "snowflake_resources/table")
+          declare -a execution_order=("snowflake_resources/01_backup_deletes" "snowflake_resources/database" "snowflake_resources/schema" "snowflake_resources/table")
           deployed_files=""
           failed_files=""
           for level in "${execution_order[@]}"; do
