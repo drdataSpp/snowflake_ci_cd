@@ -134,13 +134,14 @@ jobs:
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const files = '${{ steps.execute_scripts.outputs.deployed_files }}'.split(' ');
+            const files = '${{ steps.execute_scripts.outputs.deployed_files }}'.trim().split(' ').filter(Boolean);
             const env = '${{ env.ENV }}';
             const status = '${{ job.status }}';
             
-            let message = `Deployment to ${env} environment:\n\n`;
-            message += `Files deployed:\n${files.map(file => `- ${file}`).join('\n')}\n\n`;
-            message += `Deployment status: ${status}`;
+            let message = ` 🚀🚀 **Deployment to ${env} environment** 🚀🚀\n\n`;
+            message += `Files deployed:\n`;
+            message += files.length > 1 ? files.map(file => `- ${file}`).join('\n') : files[0];
+            message += `\n\nDeployment status: **${status}** ${status.toLowerCase() === 'success' ? '✅😎' : '❌😐'}`;
             
             github.rest.issues.createComment({
               issue_number: context.issue.number,
@@ -148,3 +149,4 @@ jobs:
               repo: context.repo.repo,
               body: message
             });
+      
