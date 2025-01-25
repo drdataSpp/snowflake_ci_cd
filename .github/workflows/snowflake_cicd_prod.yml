@@ -27,8 +27,8 @@ jobs:
             });
             const approvals = reviews.filter(review => review.state === 'APPROVED');
             console.log(`Number of approvals: ${approvals.length}`);
-            core.setOutput('approved', approvals.length >= 1);
-
+            const isApproved = approvals.length >= 1;
+            core.setOutput('approved', isApproved ? 'true' : 'false');
   check-changes:
     runs-on: ubuntu-latest
     needs: check-approvals
@@ -54,17 +54,20 @@ jobs:
             core.setOutput('base_ref', pr.data.base.ref);
             core.setOutput('head_ref', pr.data.head.ref);
 
-      - name: Get list of changed files
-        id: check-changes
+      - name: Debugging Git Diff
         run: |
           BASE_REF="${{ steps.pr_branch_info.outputs.base_ref }}"
           HEAD_REF="${{ steps.pr_branch_info.outputs.head_ref }}"
+          echo "Base Branch: $BASE_REF"
+          echo "Head Branch: $HEAD_REF"
           git fetch origin "$BASE_REF" "$HEAD_REF"
           git diff --name-only origin/$BASE_REF...origin/$HEAD_REF > changed_files.txt
-
           echo "Changed files:"
           cat changed_files.txt
 
+      - name: Check changes in snowflake_resources
+        id: check-changes
+        run: |
           if grep -q '^snowflake_resources/' changed_files.txt; then
             echo "Changes found in snowflake_resources folder"
             echo "changes_in_snowflake_resources=true" >> $GITHUB_OUTPUT
@@ -135,21 +138,16 @@ jobs:
             const failedFiles = '${{ steps.execute_scripts.outputs.failed_files }}'.trim().split(' ').filter(Boolean);
             const env = '${{ env.ENV }}';
             const status = '${{ job.status }}';
-
             let message = `🚀🚀 **Deployment to ${env} environment** 🚀🚀\n\n`;
-
             if (deployedFiles.length > 0) {
               message += `Successfully deployed files:\n`;
               message += deployedFiles.map(file => `- ${file}`).join('\n') + '\n\n';
             }
-
             if (failedFiles.length > 0) {
               message += `Failed to deploy files:\n`;
               message += failedFiles.map(file => `- ${file}`).join('\n') + '\n\n';
             }
-
             message += `Deployment status: **${status}** ${status.toLowerCase() === 'success' ? '✅😎' : '❌😐'}`;
-
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
