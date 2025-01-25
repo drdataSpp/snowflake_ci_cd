@@ -68,12 +68,14 @@ jobs:
       - name: Check changes in snowflake_resources
         id: check-changes
         run: |
-          if grep -q '^snowflake_resources/' changed_files.txt; then
-            echo "Changes found in snowflake_resources folder"
-            echo "changes_in_snowflake_resources=true" >> $GITHUB_OUTPUT
-          else
-            echo "No changes found in snowflake_resources folder"
-            echo "changes_in_snowflake_resources=false" >> $GITHUB_OUTPUT
+            if grep -q '^snowflake_resources/' changed_files.txt; then
+                echo "Changes found in snowflake_resources folder"
+                echo "changes_in_snowflake_resources=true" >> $GITHUB_OUTPUT
+            else
+                echo "No changes found in snowflake_resources folder"
+                echo "changes_in_snowflake_resources=false" >> $GITHUB_OUTPUT
+            fi
+  
 
   deploy-to-prod:
     needs: [check-approvals, check-changes]
