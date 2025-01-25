@@ -22,10 +22,7 @@ jobs:
               repo: context.repo.repo,
               pull_number: context.issue.number
             });
-            const approvals = reviews.filter(review => 
-              review.state === 'APPROVED' && 
-              review.user.login === context.payload.sender.login
-            );
+            const approvals = reviews.filter(review => review.state === 'APPROVED');
             console.log(`Number of approvals: ${approvals.length}`);
             return approvals.length >= 1;
 
