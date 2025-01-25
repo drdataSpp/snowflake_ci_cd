@@ -11,7 +11,7 @@ on:
       - snowflake_resources/**
 
 jobs:
-  snowflake-ci-cd:
+  deploy-to-test:
     runs-on: ubuntu-latest
     permissions: write-all
 
@@ -41,13 +41,17 @@ jobs:
           git fetch origin ${{ github.base_ref }}
           git fetch origin ${{ github.head_ref }}
           echo "Comparing ${{ github.base_ref }} to ${{ github.head_ref }}"
-          git diff --name-only --diff-filter=ACMR origin/${{ github.base_ref }}...origin/${{ github.head_ref }} > changed_files.txt
+
+          # Get the list of changed files and filter to only those under snowflake_resources and with .sql extension
+          git diff --name-only --diff-filter=ACMR origin/${{ github.base_ref }}...origin/${{ github.head_ref }} | grep '^snowflake_resources/.*\.sql$' > changed_files.txt
           
           echo "Changed files:"
           cat changed_files.txt
           
-          changed_files=$(cat changed_files.txt | grep '\.sql$' | tr '\n' ' ')
+          # Export only .sql files to GitHub Actions output
+          changed_files=$(cat changed_files.txt | tr '\n' ' ')
           echo "changed_files=$changed_files" >> $GITHUB_OUTPUT
+  
 
       - name: Install Snowflake CLI
         uses: Snowflake-Labs/snowflake-cli-action@v1.5
