@@ -49,29 +49,29 @@ jobs:
           cat changed_files.txt
           
           # Check if changed_files.txt is empty
-          if [ ! -s changed_files.txt ]; then
-            echo "No relevant changes found. Exiting workflow."
-            exit 78  # Exit with neutral status
+          if [ -s changed_files.txt ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            changed_files=$(cat changed_files.txt | tr '\n' ' ')
+            echo "changed_files=$changed_files" >> $GITHUB_OUTPUT
+          else
+            echo "No relevant changes found."
+            echo "has_changes=false" >> $GITHUB_OUTPUT
           fi
-          
-          # Export only .sql files to GitHub Actions output
-          changed_files=$(cat changed_files.txt | tr '\n' ' ')
-          echo "changed_files=$changed_files" >> $GITHUB_OUTPUT
-        
-  
 
       - name: Install Snowflake CLI
+        if: steps.changed_files.outputs.has_changes == 'true'
         uses: Snowflake-Labs/snowflake-cli-action@v1.5
         with:
           cli-version: "latest"
           default-config-file-path: ".snowflake/config.toml"
 
       - name: Fetch repository changes in Snowflake
+        if: steps.changed_files.outputs.has_changes == 'true'
         run: snow git fetch "${REPO_NAME}"
 
       - name: Execute Snowflake SQL scripts in order
         id: execute_scripts
-        if: steps.changed_files.outputs.changed_files != ''
+        if: steps.changed_files.outputs.has_changes == 'true'
         run: |
           set +e
           echo "Processing changed files: ${{ steps.changed_files.outputs.changed_files }}"
@@ -110,6 +110,7 @@ jobs:
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
+            const hasChanges = '${{ steps.changed_files.outputs.has_changes }}' === 'true';
             const deployedFiles = '${{ steps.execute_scripts.outputs.deployed_files }}'.trim().split(' ').filter(Boolean);
             const failedFiles = '${{ steps.execute_scripts.outputs.failed_files }}'.trim().split(' ').filter(Boolean);
             const env = '${{ env.ENV }}';
@@ -117,23 +118,27 @@ jobs:
             
             let message = `🚀🚀 **Deployment to ${env} environment** 🚀🚀\n\n`;
             
-            if (deployedFiles.length > 0) {
-              message += `Successfully deployed files:\n`;
-              message += deployedFiles.length > 1 ? deployedFiles.map(file => `- ${file}`).join('\n') : deployedFiles[0];
-              message += '\n\n';
-            }
-            
-            if (failedFiles.length > 0) {
-              message += `Failed to deploy files:\n`;
-              message += failedFiles.length > 1 ? failedFiles.map(file => `- ${file}`).join('\n') : failedFiles[0];
-              message += '\n\n';
+            if (!hasChanges) {
+              message += 'No relevant changes found. Deployment skipped.\n\n';
+            } else {
+              if (deployedFiles.length > 0) {
+                message += `Successfully deployed files:\n`;
+                message += deployedFiles.length > 1 ? deployedFiles.map(file => `- ${file}`).join('\n') : deployedFiles[0];
+                message += '\n\n';
+              }
+              
+              if (failedFiles.length > 0) {
+                message += `Failed to deploy files:\n`;
+                message += failedFiles.length > 1 ? failedFiles.map(file => `- ${file}`).join('\n') : failedFiles[0];
+                message += '\n\n';
+              }
+              
+              if (failedFiles.length > 0) {
+                message += '⚠️ Error details: SQL compilation error in file(s). Please check the workflow logs for more information.\n\n';
+              }
             }
             
             message += `Deployment status: **${status}** ${status.toLowerCase() === 'success' ? '✅😎' : '❌😐'}`;
-            
-            if (failedFiles.length > 0) {
-              message += '\n\n⚠️ Error details: SQL compilation error in file(s). Please check the workflow logs for more information.';
-            }
             
             github.rest.issues.createComment({
               issue_number: context.issue.number,
