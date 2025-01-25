@@ -98,6 +98,21 @@ jobs:
           echo "SNOWFLAKE_CONNECTIONS_DEFAULT_USER=${{ secrets.SNOWFLAKE_USER_PROD }}" >> $GITHUB_ENV
           echo "SNOWFLAKE_CONNECTIONS_DEFAULT_PASSWORD=${{ secrets.SNOWFLAKE_PASSWORD_PROD }}" >> $GITHUB_ENV
 
+      - name: Get list of changed files
+        id: changed_files
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          git fetch origin ${{ github.head_ref }}
+          echo "Comparing ${{ github.base_ref }} to ${{ github.head_ref }}"
+          git diff --name-only --diff-filter=ACMR origin/${{ github.base_ref }}...origin/${{ github.head_ref }} > changed_files.txt
+          
+          echo "Changed files:"
+          cat changed_files.txt
+          
+          changed_files=$(cat changed_files.txt | grep '\.sql$' | tr '\n' ' ')
+          echo "changed_files=$changed_files" >> $GITHUB_OUTPUT
+  
+
       - name: Install Snowflake CLI
         uses: Snowflake-Labs/snowflake-cli-action@v1.5
         with:
@@ -109,35 +124,33 @@ jobs:
 
       - name: Execute Snowflake SQL scripts in order
         id: execute_scripts
+        if: steps.changed_files.outputs.changed_files != ''
         run: |
           set +e
+          echo "Processing changed files: ${{ steps.changed_files.outputs.changed_files }}"
           echo "Using environment: ${{ env.ENV }}"
-          BASE_REF="${{ steps.pr_branch_info.outputs.base_ref }}"
-          HEAD_REF="${{ steps.pr_branch_info.outputs.head_ref }}"
-
-          # Ensure branches are fetched
-          git fetch origin "$BASE_REF" "$HEAD_REF"
-
           declare -a execution_order=("snowflake_resources/01_backup_deletes" "snowflake_resources/database" "snowflake_resources/schema" "snowflake_resources/table")
           deployed_files=""
           failed_files=""
-
           for level in "${execution_order[@]}"; do
             echo "Processing changes in $level"
-            for file in $(git diff --name-only origin/$BASE_REF...origin/$HEAD_REF | grep "$level/.*\.sql"); do
-              echo "Executing SQL script: $file"
-              branch_name="$HEAD_REF"
-              full_repo_path="@$REPO_NAME/branches/$branch_name/$file"
-              echo "Executing on repo path: $full_repo_path"
-              if snow git execute "$full_repo_path"; then
-                deployed_files+="$file "
+            for file in ${{ steps.changed_files.outputs.changed_files }}; do
+              if [[ $file == $level* && $file == *.sql ]]; then
+                echo "Executing SQL script: $file"
+                branch_name="${{ github.head_ref }}"
+                full_repo_path="@$REPO_NAME/branches/$branch_name/$file"
+                echo "Executing on repo path: $full_repo_path"
+                if snow git execute "$full_repo_path"; then
+                  deployed_files+="$file "
+                else
+                  failed_files+="$file "
+                  echo "Failed to execute $file"
+                fi
               else
-                failed_files+="$file "
-                echo "Failed to execute $file"
+                echo "Skipping non-SQL file or file not in $level: $file"
               fi
             done
           done
-
           echo "deployed_files=$deployed_files" >> $GITHUB_OUTPUT
           echo "failed_files=$failed_files" >> $GITHUB_OUTPUT
           if [[ -n "$failed_files" ]]; then
