@@ -15,7 +15,7 @@ jobs:
         id: check
         uses: actions/github-script@v6
         with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { data: reviews } = await github.rest.pulls.listReviews({
               owner: context.repo.owner,
@@ -40,7 +40,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
 
       - name: Set Snowflake account for PROD
         run: |
@@ -48,20 +47,36 @@ jobs:
           echo "SNOWFLAKE_CONNECTIONS_DEFAULT_USER=${{ secrets.SNOWFLAKE_USER_PROD }}" >> $GITHUB_ENV
           echo "SNOWFLAKE_CONNECTIONS_DEFAULT_PASSWORD=${{ secrets.SNOWFLAKE_PASSWORD_PROD }}" >> $GITHUB_ENV
 
+      - name: Get base and head branches of PR
+        id: pr_branch_info
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            core.setOutput('base_ref', pr.data.base.ref);
+            core.setOutput('head_ref', pr.data.head.ref);
+
       - name: Get list of changed files
         id: changed_files
         run: |
-          git fetch origin ${{ github.base_ref }}
-          git fetch origin ${{ github.head_ref }}
-          echo "Comparing ${{ github.base_ref }} to ${{ github.head_ref }}"
-          git diff --name-only origin/${{ github.base_ref }}...origin/${{ github.head_ref }} > changed_files.txt
-          
+          BASE_REF="${{ steps.pr_branch_info.outputs.base_ref }}"
+          HEAD_REF="${{ steps.pr_branch_info.outputs.head_ref }}"
+          echo "Fetching branches: $BASE_REF and $HEAD_REF"
+          git fetch origin $BASE_REF
+          git fetch origin $HEAD_REF
+          echo "Comparing $BASE_REF to $HEAD_REF"
+          git diff --name-only origin/$BASE_REF...origin/$HEAD_REF > changed_files.txt
+
           echo "Changed files:"
           cat changed_files.txt
-          
+
           changed_files=$(cat changed_files.txt | grep '\.sql$' | tr '\n' ' ')
           echo "changed_files=$changed_files" >> $GITHUB_OUTPUT
-        
 
       - name: Install Snowflake CLI
         uses: Snowflake-Labs/snowflake-cli-action@v1.5
@@ -87,7 +102,7 @@ jobs:
             for file in ${{ steps.changed_files.outputs.changed_files }}; do
               if [[ $file == $level* && $file == *.sql ]]; then
                 echo "Executing SQL script: $file"
-                branch_name="${{ github.head_ref }}"
+                branch_name="${{ steps.pr_branch_info.outputs.head_ref }}"
                 full_repo_path="@$REPO_NAME/branches/$branch_name/$file"
                 echo "Executing on repo path: $full_repo_path"
                 if snow git execute "$full_repo_path"; then
@@ -111,33 +126,31 @@ jobs:
         if: always()
         uses: actions/github-script@v6
         with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const deployedFiles = '${{ steps.execute_scripts.outputs.deployed_files }}'.trim().split(' ').filter(Boolean);
             const failedFiles = '${{ steps.execute_scripts.outputs.failed_files }}'.trim().split(' ').filter(Boolean);
             const env = '${{ env.ENV }}';
             const status = '${{ job.status }}';
-            
+
             let message = `🚀🚀 **Deployment to ${env} environment** 🚀🚀\n\n`;
-            
+
             if (deployedFiles.length > 0) {
               message += `Successfully deployed files:\n`;
-              message += deployedFiles.length > 1 ? deployedFiles.map(file => `- ${file}`).join('\n') : deployedFiles[0];
-              message += '\n\n';
+              message += deployedFiles.map(file => `- ${file}`).join('\n') + '\n\n';
             }
-            
+
             if (failedFiles.length > 0) {
               message += `Failed to deploy files:\n`;
-              message += failedFiles.length > 1 ? failedFiles.map(file => `- ${file}`).join('\n') : failedFiles[0];
-              message += '\n\n';
+              message += failedFiles.map(file => `- ${file}`).join('\n') + '\n\n';
             }
-            
+
             message += `Deployment status: **${status}** ${status.toLowerCase() === 'success' ? '✅😎' : '❌😐'}`;
-            
+
             if (failedFiles.length > 0) {
               message += '\n\n⚠️ Error details: SQL compilation error in file(s). Please check the workflow logs for more information.';
             }
-            
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
