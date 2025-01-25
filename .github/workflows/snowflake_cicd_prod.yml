@@ -24,7 +24,7 @@ jobs:
             });
             const approvals = reviews.filter(review => review.state === 'APPROVED');
             console.log(`Number of approvals: ${approvals.length}`);
-            return approvals.length >= 1;
+            core.setOutput('approved', approvals.length >= 1);
 
   deploy-to-prod:
     needs: check-approvals
