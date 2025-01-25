@@ -124,8 +124,15 @@ jobs:
           echo "Changed files:"
           cat changed_files.txt
           
-          changed_files=$(cat changed_files.txt | grep '\.sql$' | tr '\n' ' ')
-          echo "changed_files=$changed_files" >> $GITHUB_OUTPUT
+          # Check if changed_files.txt is empty
+          if [ -s changed_files.txt ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            changed_files=$(cat changed_files.txt | tr '\n' ' ')
+            echo "changed_files=$changed_files" >> $GITHUB_OUTPUT
+          else
+            echo "No relevant changes found."
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Install Snowflake CLI
         uses: Snowflake-Labs/snowflake-cli-action@v1.5
@@ -175,22 +182,40 @@ jobs:
         if: always()
         uses: actions/github-script@v6
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
+            const hasChanges = '${{ steps.changed_files.outputs.has_changes }}' === 'true';
             const deployedFiles = '${{ steps.execute_scripts.outputs.deployed_files }}'.trim().split(' ').filter(Boolean);
             const failedFiles = '${{ steps.execute_scripts.outputs.failed_files }}'.trim().split(' ').filter(Boolean);
             const env = '${{ env.ENV }}';
             const status = '${{ job.status }}';
-            let message = `🚀🚀 **Deployment to ${env} environment** 🚀🚀\n\n`;
-            if (deployedFiles.length > 0) {
-              message += `Successfully deployed files:\n`;
-              message += deployedFiles.map(file => `- ${file}`).join('\n') + '\n\n';
+            
+            let message = '';
+            
+            if (!hasChanges) {
+              message = `No relevant changes found. ${env} Deployment skipped ✒️.`;
+            } else {
+              message = `🚀🚀 **Deployment to ${env} environment** 🚀🚀\n\n`;
+              
+              if (deployedFiles.length > 0) {
+                message += `Successfully deployed files:\n`;
+                message += deployedFiles.length > 1 ? deployedFiles.map(file => `- ${file}`).join('\n') : deployedFiles[0];
+                message += '\n\n';
+              }
+              
+              if (failedFiles.length > 0) {
+                message += `Failed to deploy files:\n`;
+                message += failedFiles.length > 1 ? failedFiles.map(file => `- ${file}`).join('\n') : failedFiles[0];
+                message += '\n\n';
+              }
+              
+              if (failedFiles.length > 0) {
+                message += '⚠️ Error details: SQL compilation error in file(s). Please check the workflow logs for more information.\n\n';
+              }
+              
+              message += `Deployment status: **${status}** ${status.toLowerCase() === 'success' ? '✅😎' : '❌😐'}`;
             }
-            if (failedFiles.length > 0) {
-              message += `Failed to deploy files:\n`;
-              message += failedFiles.map(file => `- ${file}`).join('\n') + '\n\n';
-            }
-            message += `Deployment status: **${status}** ${status.toLowerCase() === 'success' ? '✅😎' : '❌😐'}`;
+            
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,

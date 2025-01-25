@@ -119,7 +119,7 @@ jobs:
             let message = '';
             
             if (!hasChanges) {
-              message = `No relevant changes found. ${env} Deployment skipped ✒️.`;
+              message = `No Snowflake-related changes found. ${env} Deployment skipped ✒️.`;
             } else {
               message = `🚀🚀 **Deployment to ${env} environment** 🚀🚀\n\n`;
               
