@@ -4,6 +4,9 @@ on:
   pull_request_review:
     types:
       - submitted
+  pull_request:
+    paths:
+      - 'snowflake_resources/**'
 
 jobs:
   check-approvals:
@@ -56,7 +59,7 @@ jobs:
         run: |
           BASE_REF="${{ steps.pr_branch_info.outputs.base_ref }}"
           HEAD_REF="${{ steps.pr_branch_info.outputs.head_ref }}"
-          git fetch origin $BASE_REF $HEAD_REF
+          git fetch origin "$BASE_REF" "$HEAD_REF"
           git diff --name-only origin/$BASE_REF...origin/$HEAD_REF > changed_files.txt
 
           echo "Changed files:"
