@@ -1,12 +1,12 @@
 name: Deploy Snowflake Objects to PROD Environment
 
 on:
-  pull_request_review:
-    types:
-      - submitted
   pull_request:
+    types: [opened, synchronize, reopened]
     paths:
       - 'snowflake_resources/**'
+  pull_request_review:
+    types: [submitted]
 
 jobs:
   check-approvals:
@@ -29,6 +29,7 @@ jobs:
             console.log(`Number of approvals: ${approvals.length}`);
             const isApproved = approvals.length >= 1;
             core.setOutput('approved', isApproved ? 'true' : 'false');
+
   check-changes:
     runs-on: ubuntu-latest
     needs: check-approvals
@@ -76,7 +77,6 @@ jobs:
                 echo "No changes found in snowflake_resources folder"
                 echo "changes_in_snowflake_resources=false" >> $GITHUB_OUTPUT
             fi
-  
 
   deploy-to-prod:
     needs: [check-approvals, check-changes]
@@ -99,20 +99,33 @@ jobs:
           echo "SNOWFLAKE_CONNECTIONS_DEFAULT_USER=${{ secrets.SNOWFLAKE_USER_PROD }}" >> $GITHUB_ENV
           echo "SNOWFLAKE_CONNECTIONS_DEFAULT_PASSWORD=${{ secrets.SNOWFLAKE_PASSWORD_PROD }}" >> $GITHUB_ENV
 
+      - name: Get PR information
+        id: pr_info
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            if (pr) {
+              core.setOutput('base_ref', pr.base.ref);
+              core.setOutput('head_ref', pr.head.ref);
+            } else {
+              core.setFailed('This action can only be run on pull requests');
+            }
+
       - name: Get list of changed files
         id: changed_files
         run: |
-          git fetch origin ${{ github.base_ref }}
-          git fetch origin ${{ github.head_ref }}
-          echo "Comparing ${{ github.base_ref }} to ${{ github.head_ref }}"
-          git diff --name-only --diff-filter=ACMR origin/${{ github.base_ref }}...origin/${{ github.head_ref }} > changed_files.txt
+          git fetch origin ${{ steps.pr_info.outputs.base_ref }}
+          git fetch origin ${{ steps.pr_info.outputs.head_ref }}
+          echo "Comparing ${{ steps.pr_info.outputs.base_ref }} to ${{ steps.pr_info.outputs.head_ref }}"
+          git diff --name-only --diff-filter=ACMR origin/${{ steps.pr_info.outputs.base_ref }}...origin/${{ steps.pr_info.outputs.head_ref }} > changed_files.txt
           
           echo "Changed files:"
           cat changed_files.txt
           
           changed_files=$(cat changed_files.txt | grep '\.sql$' | tr '\n' ' ')
           echo "changed_files=$changed_files" >> $GITHUB_OUTPUT
-  
 
       - name: Install Snowflake CLI
         uses: Snowflake-Labs/snowflake-cli-action@v1.5
@@ -138,7 +151,7 @@ jobs:
             for file in ${{ steps.changed_files.outputs.changed_files }}; do
               if [[ $file == $level* && $file == *.sql ]]; then
                 echo "Executing SQL script: $file"
-                branch_name="${{ github.head_ref }}"
+                branch_name="${{ steps.pr_info.outputs.head_ref }}"
                 full_repo_path="@$REPO_NAME/branches/$branch_name/$file"
                 echo "Executing on repo path: $full_repo_path"
                 if snow git execute "$full_repo_path"; then
@@ -157,7 +170,6 @@ jobs:
           if [[ -n "$failed_files" ]]; then
             exit 1
           fi
-
 
       - name: Post PROD Deployment Status
         if: always()
