@@ -1,0 +1,132 @@
+name: Deploy Snowflake Objects to TEST Environment
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - ready_for_review
+      - synchronize
+    paths:
+      - snowflake_resources/**
+
+jobs:
+  snowflake-ci-cd:
+    runs-on: ubuntu-latest
+    permissions: write-all
+
+    if: |
+      !startsWith(github.head_ref, 'snowflake-manual-deployment-') &&
+      !startsWith(github.ref, 'refs/heads/snowflake-manual-deployment-')
+
+    env:
+      REPO_NAME: "GITHUB.SNOWFLAKE_GIT.SNOWFLAKE_REPO"
+      ENV: "TEST"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set Snowflake account for TEST
+        run: |
+          echo "SNOWFLAKE_CONNECTIONS_DEFAULT_ACCOUNT=${{ secrets.SNOWFLAKE_ACCOUNT_TEST }}" >> $GITHUB_ENV
+          echo "SNOWFLAKE_CONNECTIONS_DEFAULT_USER=${{ secrets.SNOWFLAKE_USER_TEST }}" >> $GITHUB_ENV
+          echo "SNOWFLAKE_CONNECTIONS_DEFAULT_PASSWORD=${{ secrets.SNOWFLAKE_PASSWORD_TEST }}" >> $GITHUB_ENV
+
+      - name: Get list of changed files
+        id: changed_files
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          git fetch origin ${{ github.head_ref }}
+          echo "Comparing ${{ github.base_ref }} to ${{ github.head_ref }}"
+          git diff --name-only --diff-filter=ACMR origin/${{ github.base_ref }}...origin/${{ github.head_ref }} > changed_files.txt
+          
+          echo "Changed files:"
+          cat changed_files.txt
+          
+          changed_files=$(cat changed_files.txt | grep '\.sql$' | tr '\n' ' ')
+          echo "changed_files=$changed_files" >> $GITHUB_OUTPUT
+
+      - name: Install Snowflake CLI
+        uses: Snowflake-Labs/snowflake-cli-action@v1.5
+        with:
+          cli-version: "latest"
+          default-config-file-path: ".snowflake/config.toml"
+
+      - name: Fetch repository changes in Snowflake
+        run: snow git fetch "${REPO_NAME}"
+
+      - name: Execute Snowflake SQL scripts in order
+        id: execute_scripts
+        if: steps.changed_files.outputs.changed_files != ''
+        run: |
+          set +e
+          echo "Processing changed files: ${{ steps.changed_files.outputs.changed_files }}"
+          echo "Using environment: ${{ env.ENV }}"
+          declare -a execution_order=("snowflake_resources/01_backup_deletes" "snowflake_resources/database" "snowflake_resources/schema" "snowflake_resources/table")
+          deployed_files=""
+          failed_files=""
+          for level in "${execution_order[@]}"; do
+            echo "Processing changes in $level"
+            for file in ${{ steps.changed_files.outputs.changed_files }}; do
+              if [[ $file == $level* && $file == *.sql ]]; then
+                echo "Executing SQL script: $file"
+                branch_name="${{ github.head_ref }}"
+                full_repo_path="@$REPO_NAME/branches/$branch_name/$file"
+                echo "Executing on repo path: $full_repo_path"
+                if snow git execute "$full_repo_path"; then
+                  deployed_files+="$file "
+                else
+                  failed_files+="$file "
+                  echo "Failed to execute $file"
+                fi
+              else
+                echo "Skipping non-SQL file or file not in $level: $file"
+              fi
+            done
+          done
+          echo "deployed_files=$deployed_files" >> $GITHUB_OUTPUT
+          echo "failed_files=$failed_files" >> $GITHUB_OUTPUT
+          if [[ -n "$failed_files" ]]; then
+            exit 1
+          fi
+
+      - name: Post TEST Deployment Status
+        if: always()
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const deployedFiles = '${{ steps.execute_scripts.outputs.deployed_files }}'.trim().split(' ').filter(Boolean);
+            const failedFiles = '${{ steps.execute_scripts.outputs.failed_files }}'.trim().split(' ').filter(Boolean);
+            const env = '${{ env.ENV }}';
+            const status = '${{ job.status }}';
+            
+            let message = `🚀🚀 **Deployment to ${env} environment** 🚀🚀\n\n`;
+            
+            if (deployedFiles.length > 0) {
+              message += `Successfully deployed files:\n`;
+              message += deployedFiles.length > 1 ? deployedFiles.map(file => `- ${file}`).join('\n') : deployedFiles[0];
+              message += '\n\n';
+            }
+            
+            if (failedFiles.length > 0) {
+              message += `Failed to deploy files:\n`;
+              message += failedFiles.length > 1 ? failedFiles.map(file => `- ${file}`).join('\n') : failedFiles[0];
+              message += '\n\n';
+            }
+            
+            message += `Deployment status: **${status}** ${status.toLowerCase() === 'success' ? '✅😎' : '❌😐'}`;
+            
+            if (failedFiles.length > 0) {
+              message += '\n\n⚠️ Error details: SQL compilation error in file(s). Please check the workflow logs for more information.';
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: message
+            });
