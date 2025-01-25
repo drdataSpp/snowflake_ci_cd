@@ -60,8 +60,9 @@ jobs:
           HEAD_REF="${{ steps.pr_branch_info.outputs.head_ref }}"
           echo "Base Branch: $BASE_REF"
           echo "Head Branch: $HEAD_REF"
-          git fetch origin "$BASE_REF" "$HEAD_REF"
-          git diff --name-only origin/$BASE_REF...origin/$HEAD_REF > changed_files.txt
+          git fetch origin "$BASE_REF"
+          git fetch origin "$HEAD_REF"
+          git diff --name-only origin/$BASE_REF..origin/$HEAD_REF > changed_files.txt
           echo "Changed files:"
           cat changed_files.txt
 
