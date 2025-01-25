@@ -40,6 +40,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      
 
       - name: Set Snowflake account for PROD
         run: |
@@ -53,13 +54,14 @@ jobs:
           git fetch origin ${{ github.base_ref }}
           git fetch origin ${{ github.head_ref }}
           echo "Comparing ${{ github.base_ref }} to ${{ github.head_ref }}"
-          git diff --name-only --diff-filter=ACMR origin/${{ github.base_ref }}...origin/${{ github.head_ref }} > changed_files.txt
+          git diff --name-only origin/${{ github.base_ref }}...origin/${{ github.head_ref }} > changed_files.txt
           
           echo "Changed files:"
           cat changed_files.txt
           
           changed_files=$(cat changed_files.txt | grep '\.sql$' | tr '\n' ' ')
           echo "changed_files=$changed_files" >> $GITHUB_OUTPUT
+        
 
       - name: Install Snowflake CLI
         uses: Snowflake-Labs/snowflake-cli-action@v1.5
