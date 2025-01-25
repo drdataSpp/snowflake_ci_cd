@@ -116,11 +116,13 @@ jobs:
             const env = '${{ env.ENV }}';
             const status = '${{ job.status }}';
             
-            let message = `🚀🚀 **Deployment to ${env} environment** 🚀🚀\n\n`;
+            let message = '';
             
             if (!hasChanges) {
-              message += 'No relevant changes found. Deployment skipped.\n\n';
+              message = `No relevant changes found. ${env} Deployment skipped ✒️.`;
             } else {
+              message = `🚀🚀 **Deployment to ${env} environment** 🚀🚀\n\n`;
+              
               if (deployedFiles.length > 0) {
                 message += `Successfully deployed files:\n`;
                 message += deployedFiles.length > 1 ? deployedFiles.map(file => `- ${file}`).join('\n') : deployedFiles[0];
@@ -136,9 +138,9 @@ jobs:
               if (failedFiles.length > 0) {
                 message += '⚠️ Error details: SQL compilation error in file(s). Please check the workflow logs for more information.\n\n';
               }
+              
+              message += `Deployment status: **${status}** ${status.toLowerCase() === 'success' ? '✅😎' : '❌😐'}`;
             }
-            
-            message += `Deployment status: **${status}** ${status.toLowerCase() === 'success' ? '✅😎' : '❌😐'}`;
             
             github.rest.issues.createComment({
               issue_number: context.issue.number,
