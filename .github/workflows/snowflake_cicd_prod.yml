@@ -98,6 +98,12 @@ jobs:
           echo "SNOWFLAKE_CONNECTIONS_DEFAULT_USER=${{ secrets.SNOWFLAKE_USER_PROD }}" >> $GITHUB_ENV
           echo "SNOWFLAKE_CONNECTIONS_DEFAULT_PASSWORD=${{ secrets.SNOWFLAKE_PASSWORD_PROD }}" >> $GITHUB_ENV
 
+      - name: Install Snowflake CLI
+        uses: Snowflake-Labs/snowflake-cli-action@v1.5
+        with:
+            cli-version: "latest"
+            default-config-file-path: ".snowflake/config.toml"
+
       - name: Fetch repository changes in Snowflake
         run: snow git fetch "${REPO_NAME}"
 
