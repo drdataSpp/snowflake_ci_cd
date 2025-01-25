@@ -112,14 +112,21 @@ jobs:
         run: |
           set +e
           echo "Using environment: ${{ env.ENV }}"
+          BASE_REF="${{ steps.pr_branch_info.outputs.base_ref }}"
+          HEAD_REF="${{ steps.pr_branch_info.outputs.head_ref }}"
+
+          # Ensure branches are fetched
+          git fetch origin "$BASE_REF" "$HEAD_REF"
+
           declare -a execution_order=("snowflake_resources/01_backup_deletes" "snowflake_resources/database" "snowflake_resources/schema" "snowflake_resources/table")
           deployed_files=""
           failed_files=""
+
           for level in "${execution_order[@]}"; do
             echo "Processing changes in $level"
-            for file in $(git diff --name-only origin/${{ steps.pr_branch_info.outputs.base_ref }}...origin/${{ steps.pr_branch_info.outputs.head_ref }} | grep "$level/.*\.sql"); do
+            for file in $(git diff --name-only origin/$BASE_REF...origin/$HEAD_REF | grep "$level/.*\.sql"); do
               echo "Executing SQL script: $file"
-              branch_name="${{ steps.pr_branch_info.outputs.head_ref }}"
+              branch_name="$HEAD_REF"
               full_repo_path="@$REPO_NAME/branches/$branch_name/$file"
               echo "Executing on repo path: $full_repo_path"
               if snow git execute "$full_repo_path"; then
@@ -130,11 +137,13 @@ jobs:
               fi
             done
           done
+
           echo "deployed_files=$deployed_files" >> $GITHUB_OUTPUT
           echo "failed_files=$failed_files" >> $GITHUB_OUTPUT
           if [[ -n "$failed_files" ]]; then
             exit 1
           fi
+
 
       - name: Post PROD Deployment Status
         if: always()
