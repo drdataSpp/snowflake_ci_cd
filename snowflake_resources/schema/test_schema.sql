@@ -1,7 +1,6 @@
-/*
+
 USE ROLE SYSADMIN;
 
 CREATE OR ALTER SCHEMA TEST_DB.TEST_SCHEMA
 --COMMENT='this is a comment'
 ;
-*/

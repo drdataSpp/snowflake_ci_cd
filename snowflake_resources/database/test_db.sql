@@ -1,7 +1,6 @@
-/*
+
 USE ROLE SYSADMIN;
 
 CREATE OR ALTER DATABASE TEST_DB
 --COMMENT='this is a comment'
 ;
-*/
